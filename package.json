@@ -1,9 +1,486 @@
-{
-  "name": "reportgen",
-  "version": "1.0.0",
-  "dependencies": {
-    "xlsx": "^0.18.5",
-    "node-fetch": "^2.7.0",
-    "busboy": "^1.6.0"
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Marketing Report Generator</title>
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --g:#1D9E75;--gb:#E8F8F2;--gbd:#5DCAA5;--gd:#0F6E56;
+  --p:#6C63FF;--pb:#EFEEFD;--pbd:#B5B0F5;--pd:#3D37B0;
+  --dark:#0F172A;--surface:#fff;--bg:#F7F9FC;--border:#E2E8F0;
+  --text:#1A202C;--muted:#64748B;--red:#DC2626;--redbg:#FEF2F2;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.6;display:flex;min-height:100vh;}
+
+/* Overlay */
+#ov{display:none;position:fixed;inset:0;background:rgba(15,23,42,.7);z-index:999;flex-direction:column;align-items:center;justify-content:center;gap:14px;}
+.spin-lg{width:52px;height:52px;border:5px solid rgba(255,255,255,.15);border-top-color:var(--g);border-radius:50%;animation:spin .8s linear infinite;}
+#ovMsg{color:#fff;font-size:16px;font-weight:600;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Sidebar */
+aside{width:220px;background:var(--dark);display:flex;flex-direction:column;padding:1.5rem 1rem;position:fixed;top:0;left:0;bottom:0;}
+.logo{display:flex;align-items:center;gap:10px;color:#fff;font-size:16px;font-weight:700;margin-bottom:2.5rem;}
+.logo-icon{width:34px;height:34px;background:var(--g);border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;color:#fff;}
+nav{display:flex;flex-direction:column;gap:3px;}
+.nav{display:block;color:#94A3B8;text-decoration:none;padding:9px 13px;border-radius:8px;font-size:13px;transition:all .15s;cursor:pointer;}
+.nav:hover{background:rgba(255,255,255,.07);color:#fff;}
+.nav.on{background:rgba(29,158,117,.2);color:#4ADE80;font-weight:600;}
+.s-foot{margin-top:auto;}
+.s-dot{font-size:12px;padding:8px 13px;border-radius:6px;}
+.s-dot.ok{color:#4ADE80;} .s-dot.warn{color:#FBBF24;}
+
+/* Main */
+main{margin-left:220px;flex:1;display:flex;flex-direction:column;}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:1.25rem 2rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:5;}
+.topbar h1{font-size:19px;font-weight:700;}
+.topbar p{font-size:13px;color:var(--muted);margin-top:2px;}
+.mpill{background:var(--gb);color:var(--gd);border:1px solid var(--gbd);padding:5px 15px;border-radius:99px;font-size:13px;font-weight:500;}
+
+.wrap{padding:1.75rem 2rem;max-width:900px;}
+
+/* Banner */
+.banner{background:#FFFBEB;border:1px solid #FDE68A;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1.25rem;}
+.b-top{display:flex;align-items:flex-start;gap:10px;margin-bottom:.75rem;}
+.b-top strong{display:block;color:#92400E;}
+.b-top p{font-size:12px;color:#B45309;margin-top:2px;}
+.b-top a{color:#B45309;}
+.b-row{display:flex;gap:8px;}
+.b-row input{flex:1;padding:8px 12px;border:1px solid #FDE68A;border-radius:8px;font-size:13px;font-family:monospace;background:#fff;outline:none;}
+.b-row input:focus{border-color:#F59E0B;}
+.b-row button{padding:8px 20px;background:#D97706;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;}
+.b-row button:hover{background:#B45309;}
+
+/* Upload grid */
+.ugrid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;}
+.ucard{background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:1.1rem;cursor:pointer;transition:border-color .2s,background .2s;}
+.ucard:hover{border-color:var(--g);}
+.ucard.drag{border-color:var(--g);background:var(--gb);}
+.ucard.done-g{border-color:var(--gbd);background:var(--gb);}
+.ucard.done-p{border-color:var(--pbd);background:var(--pb);}
+.u-num{width:26px;height:26px;border-radius:50%;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-bottom:.75rem;}
+.u-num.g{background:var(--gb);color:var(--gd);}
+.u-num.p{background:var(--pb);color:var(--pd);}
+.u-title{font-size:14px;font-weight:600;margin-bottom:2px;}
+.u-sub{font-size:12px;color:var(--muted);margin-bottom:.75rem;}
+.req{font-size:10px;background:var(--redbg);color:var(--red);padding:2px 7px;border-radius:99px;margin-left:5px;font-weight:600;vertical-align:middle;}
+.dz{border:2px dashed var(--gbd);border-radius:8px;padding:1.25rem;text-align:center;background:var(--bg);}
+.dz.p{border-color:var(--pbd);}
+.dz-icon{font-size:28px;margin-bottom:6px;}
+.dz-txt{font-size:13px;font-weight:500;color:var(--muted);}
+.fpill{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;font-size:13px;margin-top:.6rem;}
+.fpill.g{background:var(--gb);color:var(--gd);border:1px solid var(--gbd);}
+.fpill.p{background:var(--pb);color:var(--pd);border:1px solid var(--pbd);}
+.fpill span.name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.fpill button{background:none;border:none;cursor:pointer;font-size:18px;opacity:.5;color:inherit;line-height:1;padding:0;}
+.fpill button:hover{opacity:1;}
+
+/* Card */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.1rem;margin-bottom:1rem;}
+.c-row{display:flex;align-items:center;gap:10px;margin-bottom:.75rem;}
+.c-title{font-size:14px;font-weight:600;}
+.opt{font-size:10px;background:var(--bg);color:var(--muted);padding:2px 7px;border-radius:99px;margin-left:5px;vertical-align:middle;}
+textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;color:var(--text);background:var(--bg);resize:vertical;min-height:80px;outline:none;}
+textarea:focus{border-color:var(--g);}
+.err{background:var(--redbg);color:var(--red);border:1px solid #FECACA;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:10px;display:none;}
+.gbtn{width:100%;padding:14px;background:var(--g);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;transition:background .15s;}
+.gbtn:hover{background:var(--gd);}
+.gbtn:disabled{background:#CBD5E1;color:#94A3B8;cursor:not-allowed;}
+
+/* Progress */
+.ph{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:.75rem;}
+.lg{display:flex;align-items:center;gap:9px;padding:5px 0;font-size:13px;color:var(--muted);}
+.lg.on{color:var(--text);}
+.lg.ok{color:var(--gd);}
+.sp{width:14px;height:14px;border:2px solid #E2E8F0;border-top-color:var(--g);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
+.ck{color:var(--g);font-weight:700;flex-shrink:0;}
+
+/* Results */
+.rhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;}
+.rtitle{font-size:16px;font-weight:700;}
+.rmonth{font-size:13px;color:var(--muted);}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:1rem;}
+.mc{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;}
+.ml{font-size:11px;color:var(--muted);margin-bottom:3px;}
+.mv{font-size:22px;font-weight:800;color:var(--text);line-height:1.2;}
+.md{font-size:11px;margin-top:3px;}
+.md.up{color:var(--gd);} .md.dn{color:var(--red);}
+.hl{background:var(--dark);color:#CBD5E1;border-radius:12px;padding:1rem 1.25rem;font-size:14px;font-style:italic;margin-bottom:1rem;line-height:1.7;}
+.dlbtn{width:100%;padding:13px;background:var(--gb);color:var(--gd);border:1.5px solid var(--gbd);border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;transition:background .15s;}
+.dlbtn:hover{background:#A7F3D0;}
+
+/* Modal */
+#mbg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:50;}
+#modal{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--surface);border-radius:12px;padding:1.5rem;width:500px;max-height:70vh;overflow-y:auto;z-index:51;}
+.mh{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;}
+.mh h2{font-size:16px;font-weight:700;}
+.mh button{background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted);}
+.hi{padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.hi:last-child{border:none;}
+.hm{font-weight:600;} .hd{font-size:12px;color:var(--muted);margin-top:2px;}
+.empty{color:var(--muted);font-size:13px;padding:1rem 0;}
+</style>
+</head>
+<body>
+
+<div id="ov"><div class="spin-lg"></div><div id="ovMsg">Processing…</div></div>
+
+<aside>
+  <div class="logo"><div class="logo-icon">R</div>ReportGen</div>
+  <nav>
+    <span class="nav on">📊 Dashboard</span>
+    <span class="nav" onclick="openHistory()">🕐 History</span>
+  </nav>
+  <div class="s-foot">
+    <div class="s-dot warn" id="sdot">● No API key</div>
+  </div>
+</aside>
+
+<main>
+  <div class="topbar">
+    <div><h1>Monthly Marketing Report</h1><p>Upload your Excel data and PowerPoint template to generate an updated report</p></div>
+    <div class="mpill" id="mpill"></div>
+  </div>
+
+  <div class="wrap">
+
+    <!-- API Key -->
+    <div class="banner" id="banner">
+      <div class="b-top">
+        <span style="font-size:20px">🔑</span>
+        <div>
+          <strong>Enter your free Gemini API key</strong>
+          <p>Get one free at <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a> — no credit card needed</p>
+        </div>
+      </div>
+      <div class="b-row">
+        <input type="password" id="keyInput" placeholder="AIza…" />
+        <button onclick="saveKey()">Save key</button>
+      </div>
+    </div>
+
+    <!-- Hidden inputs -->
+    <input type="file" id="eFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="onFile('excel',this)"/>
+    <input type="file" id="pFile" accept=".pptx,.ppt"      style="display:none" onchange="onFile('pptx',this)"/>
+
+    <!-- Uploads -->
+    <div class="ugrid">
+      <div class="ucard" id="eCard"
+        onclick="document.getElementById('eFile').click()"
+        ondragover="ev(event);this.classList.add('drag')"
+        ondragleave="this.classList.remove('drag')"
+        ondrop="drop(event,'excel')">
+        <div class="u-num g">1</div>
+        <div class="u-title">Excel data<span class="req">Required</span></div>
+        <div class="u-sub">.xlsx · .xls · .csv — monthly metrics</div>
+        <div class="dz" id="eDz"><div class="dz-icon">📊</div><div class="dz-txt">Click or drag to upload</div></div>
+        <div class="fpill g" id="ePill" style="display:none">
+          <span>✓</span><span class="name" id="eName"></span>
+          <button onclick="rm(event,'excel')">×</button>
+        </div>
+      </div>
+
+      <div class="ucard" id="pCard"
+        onclick="document.getElementById('pFile').click()"
+        ondragover="ev(event);this.classList.add('drag')"
+        ondragleave="this.classList.remove('drag')"
+        ondrop="drop(event,'pptx')">
+        <div class="u-num p">2</div>
+        <div class="u-title">PowerPoint template<span class="req">Required</span></div>
+        <div class="u-sub">.pptx — your existing report format</div>
+        <div class="dz p" id="pDz"><div class="dz-icon">📑</div><div class="dz-txt">Click or drag to upload</div></div>
+        <div class="fpill p" id="pPill" style="display:none">
+          <span>✓</span><span class="name" id="pName"></span>
+          <button onclick="rm(event,'pptx')">×</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Context -->
+    <div class="card">
+      <div class="c-row">
+        <div class="u-num g">3</div>
+        <span class="c-title">Context<span class="opt">Optional</span></span>
+      </div>
+      <textarea id="ctx" placeholder="e.g. Month: May 2026. Focus on campaign ROI. CPC benchmark ₹12."></textarea>
+    </div>
+
+    <!-- Generate -->
+    <div class="card">
+      <div class="c-row">
+        <div class="u-num g">4</div>
+        <span class="c-title">Generate report</span>
+      </div>
+      <div class="err" id="err"></div>
+      <button class="gbtn" id="gbtn" onclick="generate()">⚡ Generate PowerPoint Report</button>
+    </div>
+
+    <!-- Progress -->
+    <div class="card" id="prog" style="display:none">
+      <div class="ph">Generating your report…</div>
+      <div id="logs"></div>
+    </div>
+
+    <!-- Results -->
+    <div id="res" style="display:none">
+      <div class="rhead"><div class="rtitle">✅ Report ready</div><div class="rmonth" id="rmonth"></div></div>
+      <div class="mgrid" id="mgrid"></div>
+      <div class="hl" id="hl"></div>
+      <button class="dlbtn" id="dlbtn">⬇ Download PowerPoint (.pptx)</button>
+    </div>
+
+  </div>
+</main>
+
+<!-- History -->
+<div id="mbg" onclick="closeHistory()"></div>
+<div id="modal">
+  <div class="mh"><h2>Report history</h2><button onclick="closeHistory()">×</button></div>
+  <div id="hlist"></div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let eData=null, pData=null, blob=null;
+let hist=JSON.parse(localStorage.getItem('rg_h')||'[]');
+
+// ── Init ───────────────────────────────────────────────────────────────────
+document.getElementById('mpill').textContent=new Date().toLocaleString('en-IN',{month:'long',year:'numeric'});
+(function(){
+  const k=localStorage.getItem('rg_k');
+  if(k){document.getElementById('banner').style.display='none';dot(true);}
+})();
+
+// ── Key ────────────────────────────────────────────────────────────────────
+function saveKey(){
+  const k=document.getElementById('keyInput').value.trim();
+  if(k.length<10){alert('Enter a valid Gemini API key (starts with AIza…)');return;}
+  localStorage.setItem('rg_k',k);
+  document.getElementById('banner').style.display='none';
+  dot(true);
+}
+function dot(ok){
+  const el=document.getElementById('sdot');
+  el.textContent=ok?'● Gemini connected':'● No API key';
+  el.className='s-dot '+(ok?'ok':'warn');
+}
+function key(){return localStorage.getItem('rg_k')||'';}
+
+// ── Drop helpers ───────────────────────────────────────────────────────────
+function ev(e){e.preventDefault();e.stopPropagation();}
+function drop(e,type){
+  ev(e);
+  const id=type==='excel'?'eCard':'pCard';
+  document.getElementById(id).classList.remove('drag');
+  const f=e.dataTransfer.files[0];
+  if(f) upload(type,f);
+}
+function onFile(type,inp){
+  const f=inp.files[0];
+  if(f) upload(type,f);
+  inp.value='';
+}
+
+// ── Upload → server ────────────────────────────────────────────────────────
+async function upload(type, file){
+  showOv(type==='excel'?'Reading Excel file…':'Reading PowerPoint…');
+  try{
+    // Read file as base64 in browser, send as JSON — works on all platforms
+    const base64 = await toBase64(file);
+    const r = await fetch(type==='excel'?'/api/parse-excel':'/api/parse-pptx', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: base64 })
+    });
+    const d = await r.json();
+    if(!d.ok) throw new Error(d.error||'Parse failed');
+    if(type==='excel'){
+      eData=d.csv;
+      document.getElementById('eName').textContent=file.name+' ('+d.rowCount+' rows)';
+      document.getElementById('ePill').style.display='flex';
+      document.getElementById('eDz').style.display='none';
+      document.getElementById('eCard').classList.add('done-g');
+    } else {
+      pData=d.text;
+      document.getElementById('pName').textContent=file.name;
+      document.getElementById('pPill').style.display='flex';
+      document.getElementById('pDz').style.display='none';
+      document.getElementById('pCard').classList.add('done-p');
+    }
+  } catch(e){
+    alert('Error reading file: '+e.message+'\n\nTip: For Excel, try File → Save As → CSV first.');
+  }
+  hideOv();
+}
+
+function toBase64(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload  = e => resolve(e.target.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function rm(e,type){
+  ev(e);
+  if(type==='excel'){
+    eData=null;
+    document.getElementById('ePill').style.display='none';
+    document.getElementById('eDz').style.display='block';
+    document.getElementById('eCard').classList.remove('done-g');
+  } else {
+    pData=null;
+    document.getElementById('pPill').style.display='none';
+    document.getElementById('pDz').style.display='block';
+    document.getElementById('pCard').classList.remove('done-p');
   }
 }
+
+// ── Generate ───────────────────────────────────────────────────────────────
+async function generate(){
+  const errEl=document.getElementById('err');
+  errEl.style.display='none';
+
+  if(!eData){errEl.textContent='⚠ Please upload your Excel file first.';errEl.style.display='block';return;}
+  if(!pData){errEl.textContent='⚠ Please upload your PowerPoint template first.';errEl.style.display='block';return;}
+  const k=key();
+  if(!k){document.getElementById('banner').style.display='block';errEl.textContent='⚠ Please enter your Gemini API key.';errEl.style.display='block';return;}
+
+  const btn=document.getElementById('gbtn');
+  btn.disabled=true; btn.textContent='⏳ Generating…';
+  document.getElementById('logs').innerHTML='';
+  document.getElementById('prog').style.display='block';
+  document.getElementById('res').style.display='none';
+
+  const month=new Date().toLocaleString('en-IN',{month:'long',year:'numeric'});
+  const l1=lg('Sending data to Gemini AI for analysis…');
+
+  try{
+    const r=await fetch('/api/generate',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({apiKey:k,excelCsv:eData,pptxText:pData,context:document.getElementById('ctx').value.trim(),month})
+    });
+    const d=await r.json();
+    if(!d.ok) throw new Error(d.error||'Generation failed');
+    lk(l1,'AI analysis complete — '+d.analysis.slides.length+' slides generated');
+
+    const l2=lg('Building PowerPoint file…');
+    blob=await buildPptx(d.analysis);
+    lk(l2,'PowerPoint ready to download');
+
+    saveHist(d.analysis);
+    showRes(d.analysis);
+  } catch(e){
+    lk(l1,'⚠ Error: '+e.message);
+    errEl.textContent='⚠ '+e.message;
+    errEl.style.display='block';
+  }
+  btn.disabled=false; btn.textContent='⚡ Generate PowerPoint Report';
+}
+
+// ── PPTX ───────────────────────────────────────────────────────────────────
+async function buildPptx(d){
+  const p=new PptxGenJS(); p.layout='LAYOUT_16x9';
+  const T='1D9E75',DK='0F172A',W='FFFFFF',MU='64748B',LT='F7F9FC';
+
+  const s1=p.addSlide(); s1.background={color:DK};
+  s1.addShape(p.shapes.RECTANGLE,{x:0,y:0,w:10,h:1.2,fill:{color:T}});
+  s1.addText('Monthly Marketing Report',{x:.5,y:.1,w:9,h:.65,fontSize:26,bold:true,color:W,fontFace:'Calibri',valign:'middle'});
+  s1.addText(d.month,{x:.5,y:.8,w:9,h:.3,fontSize:13,color:'CBD5E1',fontFace:'Calibri'});
+  s1.addText(d.headline_insight||'',{x:1,y:1.45,w:8,h:.9,fontSize:15,color:'E2E8F0',fontFace:'Calibri',italic:true,align:'center',valign:'middle'});
+
+  const ms=d.metrics||[],cols=Math.min(ms.length,3),cw=cols===3?2.85:cols===2?4.3:8.5,gap=.22;
+  const sx=(10-(cols*cw+(cols-1)*gap))/2;
+  ms.slice(0,6).forEach((m,i)=>{
+    const col=i%cols,row=Math.floor(i/cols),x=sx+col*(cw+gap),y=2.6+row*1.35;
+    s1.addShape(p.shapes.RECTANGLE,{x,y,w:cw,h:1.1,fill:{color:'1E293B'}});
+    s1.addShape(p.shapes.RECTANGLE,{x,y,w:.1,h:1.1,fill:{color:T}});
+    s1.addText(m.label,{x:x+.18,y:y+.1,w:cw-.25,h:.22,fontSize:10,color:'94A3B8',fontFace:'Calibri'});
+    s1.addText(m.value,{x:x+.18,y:y+.34,w:cw-.25,h:.5,fontSize:22,bold:true,color:W,fontFace:'Calibri'});
+    if(m.delta){const dc=m.direction==='up'?'4ADE80':m.direction==='down'?'F87171':'94A3B8';s1.addText(m.delta,{x:x+.18,y:y+.85,w:cw-.25,h:.2,fontSize:10,color:dc,fontFace:'Calibri'});}
+  });
+
+  (d.slides||[]).forEach(sd=>{
+    const sl=p.addSlide(); sl.background={color:LT};
+    sl.addShape(p.shapes.RECTANGLE,{x:0,y:0,w:10,h:.65,fill:{color:T}});
+    sl.addText(sd.title||'',{x:.4,y:.07,w:9.2,h:.5,fontSize:18,bold:true,color:W,fontFace:'Calibri',valign:'middle'});
+    sl.addText(sd.subtitle||'',{x:.4,y:.8,w:9,h:.3,fontSize:12,color:MU,fontFace:'Calibri',italic:true});
+    const bullets=(sd.bullets||[]).map((b,i,a)=>({text:b,options:{bullet:true,breakLine:i<a.length-1}}));
+    if(bullets.length) sl.addText(bullets,{x:.5,y:1.25,w:9,h:3.9,fontSize:14,color:'1A202C',fontFace:'Calibri',paraSpaceAfter:10});
+  });
+
+  const sr=p.addSlide(); sr.background={color:DK};
+  sr.addShape(p.shapes.RECTANGLE,{x:0,y:0,w:10,h:.65,fill:{color:T}});
+  sr.addText('Recommendations',{x:.4,y:.07,w:9.2,h:.5,fontSize:18,bold:true,color:W,fontFace:'Calibri',valign:'middle'});
+  (d.recommendations||[]).forEach((r,i)=>{
+    const y=.9+i*1.4;
+    sr.addShape(p.shapes.RECTANGLE,{x:.4,y,w:9.2,h:1.1,fill:{color:'1E293B'}});
+    sr.addShape(p.shapes.OVAL,{x:.55,y:y+.36,w:.38,h:.38,fill:{color:T}});
+    sr.addText(String(i+1),{x:.55,y:y+.36,w:.38,h:.38,fontSize:13,bold:true,color:W,align:'center',valign:'middle'});
+    sr.addText(r,{x:1.1,y:y+.3,w:8.1,h:.5,fontSize:14,color:'E2E8F0',fontFace:'Calibri',valign:'middle'});
+  });
+
+  const buf=await p.write({outputType:'arraybuffer'});
+  return new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.presentationml.presentation'});
+}
+
+// ── Results ────────────────────────────────────────────────────────────────
+function showRes(d){
+  const g=document.getElementById('mgrid'); g.innerHTML='';
+  (d.metrics||[]).forEach(m=>{
+    const c=document.createElement('div'); c.className='mc';
+    const cls=m.direction==='up'?'up':m.direction==='down'?'dn':'';
+    const ar=m.direction==='up'?'↑ ':m.direction==='down'?'↓ ':'';
+    c.innerHTML='<div class="ml">'+m.label+'</div><div class="mv">'+m.value+'</div>'+(m.delta?'<div class="md '+cls+'">'+ar+m.delta+'</div>':'');
+    g.appendChild(c);
+  });
+  document.getElementById('hl').textContent='"'+(d.headline_insight||'')+'"';
+  document.getElementById('rmonth').textContent=d.month;
+  document.getElementById('res').style.display='block';
+  document.getElementById('dlbtn').onclick=()=>{
+    if(!blob)return;
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='Marketing_Report_'+(d.month||'').replace(/ /g,'_')+'.pptx';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+  };
+}
+
+// ── History ────────────────────────────────────────────────────────────────
+function saveHist(d){
+  hist.unshift({month:d.month,at:new Date().toISOString()});
+  if(hist.length>12)hist=hist.slice(0,12);
+  localStorage.setItem('rg_h',JSON.stringify(hist));
+}
+function openHistory(){
+  const l=document.getElementById('hlist');
+  l.innerHTML=hist.length
+    ?hist.map(h=>'<div class="hi"><div class="hm">'+h.month+'</div><div class="hd">'+new Date(h.at).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})+'</div></div>').join('')
+    :'<p class="empty">No reports yet.</p>';
+  document.getElementById('modal').style.display='block';
+  document.getElementById('mbg').style.display='block';
+}
+function closeHistory(){
+  document.getElementById('modal').style.display='none';
+  document.getElementById('mbg').style.display='none';
+}
+
+// ── Log ────────────────────────────────────────────────────────────────────
+function lg(t){
+  const el=document.createElement('div');el.className='lg on';
+  el.innerHTML='<div class="sp"></div><span>'+t+'</span>';
+  document.getElementById('logs').appendChild(el);return el;
+}
+function lk(el,t){el.className='lg ok';el.innerHTML='<span class="ck">✓</span><span>'+t+'</span>';}
+
+// ── Overlay ────────────────────────────────────────────────────────────────
+function showOv(m){document.getElementById('ovMsg').textContent=m;document.getElementById('ov').style.display='flex';}
+function hideOv(){document.getElementById('ov').style.display='none';}
+</script>
+</body>
+</html>

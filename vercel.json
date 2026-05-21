@@ -1,6 +1,8 @@
 {
-  "version": 2,
-  "functions": {
-    "api/*.js": { "maxDuration": 30 }
+  "name": "reportgen",
+  "version": "1.0.0",
+  "dependencies": {
+    "xlsx": "^0.18.5",
+    "node-fetch": "^2.7.0"
   }
 }
