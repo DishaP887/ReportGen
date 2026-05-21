@@ -1,0 +1,9 @@
+{
+  "name": "reportgen",
+  "version": "1.0.0",
+  "dependencies": {
+    "xlsx": "^0.18.5",
+    "node-fetch": "^2.7.0",
+    "busboy": "^1.6.0"
+  }
+}
